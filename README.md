@@ -28,7 +28,9 @@ A cross-browser extension for monitoring GitHub pull request checks. Get notifie
 3. Click "Load Temporary Add-on"
 4. Navigate to the extension directory and select `manifest.json`
 
-**Note**: In Firefox, temporary extensions are removed when you close the browser. For permanent installation, you'll need to package and sign the extension.
+**Notes**: 
+- In Firefox, temporary extensions are removed when you close the browser. For permanent installation, you'll need to package and sign the extension.
+- Firefox 121 or newer is required for Manifest V3 support with background scripts.
 
 ## How It Works
 
@@ -91,8 +93,21 @@ github-pr-monitor/
 
 ## Browser Compatibility
 
-- ✅ Chrome (Manifest V3)
-- ✅ Firefox (with browser_specific_settings for gecko)
+- ✅ **Chrome** (Manifest V3 with service workers)
+- ✅ **Firefox 121+** (Manifest V3 with background scripts)
+
+**Note**: The extension uses both `service_worker` and `scripts` in the manifest for cross-browser compatibility. Chrome uses the service worker, while Firefox uses the background script. Both browsers execute the same `background.js` file.
+
+## Troubleshooting
+
+### Firefox: "background.service_worker is currently disabled"
+This error appears on older Firefox versions. Make sure you're using **Firefox 121 or newer**. The extension manifest includes both service worker and scripts configurations to support both browsers.
+
+### No notifications appearing
+1. Check that browser notifications are enabled for your browser
+2. Verify the extension has the necessary permissions
+3. Make sure you're on a GitHub PR page with active checks
+4. Check the browser console for any errors
 
 ## Privacy
 
