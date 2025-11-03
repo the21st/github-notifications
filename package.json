@@ -1,0 +1,16 @@
+{
+  "name": "github-pr-check-monitor",
+  "version": "1.0.0",
+  "description": "Browser extension to monitor GitHub PR checks and send notifications",
+  "scripts": {
+    "build:icons": "node scripts/build-icons.js",
+    "package": "npm run build:icons && node scripts/package.js",
+    "clean": "rm -rf dist icons/*.png"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.0"
+  },
+  "keywords": ["browser-extension", "github", "notifications"],
+  "author": "",
+  "license": "MIT"
+}
