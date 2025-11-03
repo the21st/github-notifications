@@ -27,98 +27,120 @@ function getPRInfo() {
 
 // Function to parse check status from the GitHub UI
 function getCheckStatus() {
-  // Look for the checks summary in the PR page
-  const mergeBox = document.querySelector('.merge-status-list');
-  if (!mergeBox) {
-    return null;
-  }
-
-  // Try to find check status indicators
-  const checkItems = document.querySelectorAll('.merge-status-item');
+  let status = {
+    hasPending: false,
+    hasFailed: false,
+    hasSuccess: false,
+    checksExist: false
+  };
   
-  let totalChecks = 0;
-  let passedChecks = 0;
-  let failedChecks = 0;
-  let pendingChecks = 0;
-
-  checkItems.forEach(item => {
-    // Look for status indicators
-    const statusIcon = item.querySelector('svg');
-    const text = item.textContent.toLowerCase();
+  // Primary approach: Look for the merge box section headings
+  // Scope to merge box area to avoid false matches from PR description
+  const mergeBoxArea = document.querySelector('.merge-status-list, .merge-msg, [data-testid="mergeability-status"]');
+  
+  if (mergeBoxArea) {
+    const headings = mergeBoxArea.querySelectorAll('h3, h4');
     
-    // Check for "checks" or "continuous integration" items
-    if (text.includes('check') || text.includes('continuous integration') || text.includes('status check')) {
-      totalChecks++;
+    headings.forEach(heading => {
+      const text = heading.textContent.trim().toLowerCase();
       
-      // Check the status by looking at SVG classes or aria-labels
-      if (item.querySelector('[data-test-selector="status-checks-success"]') || 
-          text.includes('successful') || 
-          text.includes('passed') ||
-          statusIcon?.classList.contains('text-green')) {
-        passedChecks++;
-      } else if (item.querySelector('[data-test-selector="status-checks-failure"]') || 
-                 text.includes('failed') || 
-                 text.includes('failing') ||
-                 statusIcon?.classList.contains('text-red')) {
-        failedChecks++;
-      } else if (text.includes('pending') || 
-                 text.includes('in progress') || 
-                 text.includes('expected') ||
-                 statusIcon?.classList.contains('text-yellow')) {
-        pendingChecks++;
+      // Check for various status messages (case-insensitive, broader matching)
+      if (text.includes("haven't completed") || 
+          text.includes("in progress") ||
+          text.includes("waiting for") ||
+          text.includes("checks are pending") ||
+          text.includes("expected")) {
+        status.hasPending = true;
+        status.checksExist = true;
+      } else if (text.includes("failing") || 
+                 text.includes("failed") ||
+                 text.includes("not successful") ||
+                 text.includes("were unsuccessful")) {
+        status.hasFailed = true;
+        status.checksExist = true;
+      } else if (text.includes("successful") || 
+                 text.includes("passed") ||
+                 text.includes("all checks have passed") ||
+                 text.includes("checks passed")) {
+        status.hasSuccess = true;
+        status.checksExist = true;
+      }
+    });
+  }
+  
+  // Fallback 1: Try the detailed checks view with data-testid
+  if (!status.checksExist) {
+    const detailsContainer = document.querySelector('[data-testid="status-checks"]');
+    if (detailsContainer) {
+      const checkItems = detailsContainer.querySelectorAll('[data-testid="status-check-item"]');
+      let totalChecks = checkItems.length;
+      
+      if (totalChecks > 0) {
+        status.checksExist = true;
+      }
+      
+      let completedChecks = 0;
+      let failedChecks = 0;
+      
+      checkItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        
+        if (text.includes('success') || item.querySelector('[data-status="success"]')) {
+          completedChecks++;
+        } else if (text.includes('fail') || item.querySelector('[data-status="failure"]')) {
+          completedChecks++;
+          failedChecks++;
+        }
+      });
+      
+      if (failedChecks > 0) {
+        status.hasFailed = true;
+      }
+      
+      if (totalChecks > 0 && completedChecks === totalChecks) {
+        if (failedChecks === 0) {
+          status.hasSuccess = true;
+        }
+      } else if (completedChecks < totalChecks) {
+        status.hasPending = true;
       }
     }
-  });
-
-  // Alternative: Check the new GitHub UI with status-checks
-  const statusChecksSection = document.querySelector('[data-testid="status-checks"]');
-  if (statusChecksSection && totalChecks === 0) {
-    const checkRuns = statusChecksSection.querySelectorAll('[data-testid="status-check-item"]');
+  }
+  
+  // Fallback 2: Legacy merge-status-item approach
+  if (!status.checksExist) {
+    const checkItems = document.querySelectorAll('.merge-status-item');
     
-    checkRuns.forEach(check => {
-      totalChecks++;
-      const text = check.textContent.toLowerCase();
+    if (checkItems.length > 0) {
+      let hasChecks = false;
       
-      if (check.querySelector('.octicon-check, .octicon-check-circle') || text.includes('success')) {
-        passedChecks++;
-      } else if (check.querySelector('.octicon-x, .octicon-x-circle') || text.includes('fail')) {
-        failedChecks++;
-      } else {
-        pendingChecks++;
-      }
-    });
-  }
-
-  // Look for the new merge-checks section
-  const mergeChecks = document.querySelector('.merge-status-checks');
-  if (mergeChecks && totalChecks === 0) {
-    const checks = mergeChecks.querySelectorAll('.branch-action-item');
-    
-    checks.forEach(check => {
-      const statusIcon = check.querySelector('.branch-action-state-icon');
-      if (statusIcon) {
-        totalChecks++;
+      checkItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
         
-        if (statusIcon.classList.contains('bg-green') || 
-            check.querySelector('.octicon-check')) {
-          passedChecks++;
-        } else if (statusIcon.classList.contains('bg-red') || 
-                   check.querySelector('.octicon-x')) {
-          failedChecks++;
-        } else {
-          pendingChecks++;
+        if (text.includes('check') || text.includes('continuous integration') || text.includes('status check')) {
+          hasChecks = true;
+          status.checksExist = true;
+          
+          if (text.includes('successful') || text.includes('passed')) {
+            status.hasSuccess = true;
+          } else if (text.includes('failed') || text.includes('failing')) {
+            status.hasFailed = true;
+          } else if (text.includes('pending') || text.includes('in progress') || text.includes('expected')) {
+            status.hasPending = true;
+          }
         }
-      }
-    });
+      });
+    }
   }
-
+  
+  if (!status.checksExist) {
+    return null;
+  }
+  
   return {
-    total: totalChecks,
-    passed: passedChecks,
-    failed: failedChecks,
-    pending: pendingChecks,
-    allComplete: totalChecks > 0 && (passedChecks + failedChecks) === totalChecks,
-    hasFailed: failedChecks > 0
+    hasFailed: status.hasFailed,
+    allComplete: (status.hasSuccess || status.hasFailed) && !status.hasPending,
+    pending: status.hasPending
   };
 }
 
@@ -131,7 +153,7 @@ function checkAndNotify() {
   const prInfo = getPRInfo();
   const checkStatus = getCheckStatus();
 
-  if (!checkStatus || checkStatus.total === 0) {
+  if (!checkStatus) {
     return;
   }
 
@@ -155,7 +177,7 @@ function checkAndNotify() {
   }
 
   // Reset notification flag when checks are pending again
-  if (checkStatus.pending > 0 && !checkStatus.allComplete) {
+  if (checkStatus.pending && !checkStatus.allComplete) {
     notificationSent = false;
   }
 }

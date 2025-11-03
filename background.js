@@ -19,10 +19,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     if (checkStatus.hasFailed) {
       title = '❌ PR Checks Failed';
-      messageText = `${checkStatus.failed} check(s) failed in ${prInfo.owner}/${prInfo.repo}#${prInfo.number}`;
+      messageText = `Some checks failed in ${prInfo.owner}/${prInfo.repo}#${prInfo.number}`;
     } else if (checkStatus.allComplete) {
       title = '✅ All PR Checks Passed';
-      messageText = `All ${checkStatus.total} check(s) passed in ${prInfo.owner}/${prInfo.repo}#${prInfo.number}`;
+      messageText = `All checks passed in ${prInfo.owner}/${prInfo.repo}#${prInfo.number}`;
     }
 
     if (title) {
